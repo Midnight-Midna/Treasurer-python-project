@@ -19,10 +19,11 @@ def OpenDB():
     db['balance'] = Decimal(db['balance'])
     return db
 
-def SaveDB(dbfile, currentDate):
+def SaveDB(dbfile):
     # save json file
     dbfile['balance'] = str(dbfile['balance'])
     jsondump = json.dumps(dbfile, indent=2)
+    currentDate = datetime.fromtimestamp(datetime.now().timestamp())
     os.rename("./db.json", "db." + currentDate.strftime("%d%m%y%H%M%S") + ".json")
     f = open("db.json", "w")
     f.write(jsondump)
@@ -53,23 +54,13 @@ def StartMenu(d, userLevel):
             inputString += "\n Enter 2 to make a request\n"
         case 3:
             inputString += "\n Enter 2 to manage requests\n"
-    userInput = int(input(inputString))
+    userInput = int(input(inputString + "\nChoice: "))
     match userInput:
         case 0:
             return()
         case 1:
             #request audit and how many logs to audit
-            auditRequestAmount = int(input("how many logs would you like to view?")) - 1
-            while auditRequestAmount >= 0:
-                log = d['logs'][-auditRequestAmount]
-                requestInEnglish = 'at ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', the balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
-                if bool(log['accepted']):
-                    requestInEnglish += ' The request has been approved.'
-                else:
-                    requestInEnglish += ' The request was denied.'
-
-                print(requestInEnglish)
-                auditRequestAmount -= 1
+            ReadAudits(d)
         case 2:
             match userLevel:
                 case 2:
@@ -77,6 +68,18 @@ def StartMenu(d, userLevel):
                 case 3:
                     VerifyChange(d)
             
+def ReadAudits(d):
+    auditRequestAmount = int(input("How many logs would you like to view? "))
+    while auditRequestAmount > 0:
+        log = d['logs'][-auditRequestAmount]
+        requestInEnglish = 'at ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', the balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
+        if bool(log['accepted']):
+            requestInEnglish += ' The request has been approved.'
+        else:
+            requestInEnglish += ' The request was denied.'
+
+        print(requestInEnglish)
+        auditRequestAmount -= 1
 
 def RequestChange(d):
     unix_timestamp = datetime.now().timestamp()
@@ -92,12 +95,12 @@ def RequestChange(d):
     #save after conformation
     if confirm == "y":
         d['pendingRequests'].append(newRequest)
-        SaveDB(d, today)
+        SaveDB(d)
         print("Request saved! Returning to main menu.")
         StartMenu(d, 2)
     else:
         retry = input("Canceled. Would you like to retry? (y/n):")
-        if input == 'y':
+        if retry == 'y':
             RequestChange(d, 2)
         else:
             print("Returning to main menu.")
@@ -112,7 +115,7 @@ def VerifyChange(d):
     choice = input("Choose a transaction ID: ")
     chosenRequest = d["pendingRequests"][int(choice)-1]
     requestdate = datetime.fromtimestamp(int(chosenRequest['date'])).strftime('%m/%d/%y %H:%M:%S')
-    print("\n\nID: " + str(counter) + "\nDate: " + requestdate + "\nValue: " + chosenRequest['value'] + " \nReason: " + chosenRequest['desc'])
+    print("\n\nID: " + str(choice) + "\nDate: " + requestdate + "\nValue: " + chosenRequest['value'] + " \nReason: " + chosenRequest['desc'])
     approval = input("Would you like to (A)pprove or (D)eny this request? (N to exit) ")
     if approval == "A":
         chosenRequest['accepted'] = 'true'
@@ -120,10 +123,11 @@ def VerifyChange(d):
         d['balance'] += Decimal(chosenRequest['value'])
         d['balance'] = str(d['balance'])
         del d["pendingRequests"][int(choice)-1]
-        SaveDB(d, datetime.fromtimestamp(datetime.now().timestamp()))
+        SaveDB(d)
     elif approval == "D":
         chosenRequest['accepted'] = 'false'
         d['logs'].append(chosenRequest)
+        del d["pendingRequests"][int(choice)-1]
         SaveDB(d)
     elif approval == "N":
         print("Exiting.")
@@ -134,4 +138,4 @@ def VerifyChange(d):
 
 getcontext().prec = 2
 
-SignIn(input("Username: "), input("\nPassword: "))
+SignIn(input("Username: "), input("Password: "))
