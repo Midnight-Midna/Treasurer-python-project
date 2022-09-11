@@ -136,6 +136,6 @@ def VerifyChange(d):
         print("Restarting.")
         VerifyChange(d)
 
-getcontext().prec = 2
-
-SignIn(input("Username: "), input("Password: "))
+if __name__ == "__main__":
+    getcontext().prec = 2
+    SignIn(input("Username: "), input("Password: "))
