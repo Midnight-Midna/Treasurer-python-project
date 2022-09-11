@@ -47,14 +47,26 @@ app=Flask(__name__)
 
 @app.route('/')
 def func():
-    return 'mewheniGETyou'
+    d = OpenDB()
+    
+    return render_template('welcome.html', balance = str(d['balance']))
 
 # Return all audit logs (no authentication, open to all users)
 
 @app.route('/logs')
 def logs():
     d = OpenDB()
-    return d['logs']
+    requestInEnglish = ''
+    logs = len(d['logs'])
+    while logs > 0:
+        log = d['logs'][-logs]
+        requestInEnglish += '\nAt ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', the balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
+        if bool(log['accepted']):
+            requestInEnglish += ' The request has been approved.'
+        else:
+            requestInEnglish += ' The request was denied.'
+        logs -= 1
+    return requestInEnglish
 
 @app.route('/createrequest', methods = ['POST', 'GET'])
 def CreateRequest():
@@ -64,7 +76,7 @@ def CreateRequest():
     today = datetime.fromtimestamp(int(unix_timestamp))
     
     for loginToken in d['tokens']:
-        if request.cookies.get('loginToken') == loginToken:
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) == 2:
             # Constructs request from POST data and saves
             if request.method == 'POST':
 
@@ -76,7 +88,7 @@ def CreateRequest():
                     }
                     d['pendingRequests'].append(newRequest)
                     SaveDB(d)
-                    return("Request submitted!")
+                    return("Request submitted!\n<a href=/createrequest>Return to Create Request</a>")
             else:
             # ...or returns the file to send the POST
                 return app.send_static_file('makerequest.html')
@@ -112,46 +124,44 @@ def login():
 
                     SaveDB(d)
                     return resp
-                    
-                else:
-                    return("Incorrect Password")
-        return("Incorrect Username")
+                    choice
     else:
         return app.send_static_file('login.html')
 
-@app.route('/responsemanager', methods = ['POST', 'GET'])
+@app.route('/requestmanager', methods = ['POST', 'GET'])
 def ResponseManager():
     d = OpenDB()
-    counter = 1
-    resp = ''
-    for request in d["pendingRequests"] :
-        requestdate = datetime.fromtimestamp(int(request['date'])).strftime('%m/%d/%y %H:%M:%S')
-        resp += "\n\nID: " + str(counter) + "\nDate: " + requestdate + "\nValue: " + request['value'] + " \nReason: " + request['desc']
-        counter += 1
-    return resp
-    choice = request.form['Transaction ID']
-    chosenRequest = d["pendingRequests"][int(choice)-1]
-    requestdate = datetime.fromtimestamp(int(chosenRequest['date'])).strftime('%m/%d/%y %H:%M:%S')
-    print("\n\nID: " + str(choice) + "\nDate: " + requestdate + "\nValue: " + chosenRequest['value'] + " \nReason: " + chosenRequest['desc'])
-    approval = input("Would you like to (A)pprove or (D)eny this request? (N to exit) ")
-    if approval == "A":
-        chosenRequest['accepted'] = 'true'
-        d['logs'].append(chosenRequest)
-        d['balance'] += Decimal(chosenRequest['value'])
-        d['balance'] = str(d['balance'])
-        del d["pendingRequests"][int(choice)-1]
-        SaveDB(d)
-    elif approval == "D":
-        chosenRequest['accepted'] = 'false'
-        d['logs'].append(chosenRequest)
-        del d["pendingRequests"][int(choice)-1]
-        SaveDB(d)
-    elif approval == "N":
-        print("Exiting.")
-        StartMenu(d, 2)
-    else:
-        print("Restarting.")
-        VerifyChange(d)
+    for loginToken in d['tokens']: 
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) == 3:
+            if request.method == 'POST':
+                match request.form['Action']:
+                    case 'Approve':
+                        chosenRequest = d['pendingRequests'][int(request.form['ID'])-1]
+                        chosenRequest['accepted'] = 'true'
+                        d['logs'].append(chosenRequest)
+                        d['balance'] += Decimal(chosenRequest['value'])
+                        d['balance'] = str(d['balance'])
+                        del d["pendingRequests"][int(request.form['ID'])-1]
+                        SaveDB(d)
+                        return('Approved!\n<a href=/requestmanager>Return to Request Manager</a>')
+                    case 'Deny':
+                        chosenRequest = d['pendingRequests'][int(request.form['ID'])-1]
+                        chosenRequest['accepted'] = 'false'
+                        d['logs'].append(chosenRequest)
+                        del d["pendingRequests"][int(request.form['ID'])-1]
+                        SaveDB(d)
+                        return('Denied.\n<a href=/requestmanager>Return to Request Manager</a>')
+            else:
+                
+                counter = 1
+                request_table = ''
+                for pendingrequest in d["pendingRequests"] :
+                    requestdate = datetime.fromtimestamp(int(pendingrequest['date'])).strftime('%m/%d/%y %H:%M:%S')
+                    request_table += "\n\nID: " + str(counter) + "\nDate: " + requestdate + "\nValue: " + pendingrequest['value'] + " \nReason: " + pendingrequest['desc']
+                    counter += 1
+                return render_template('requestmanager.html', request_table = request_table)
+    abort(403)
+    
         
 # actual main application start
 
