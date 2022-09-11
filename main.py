@@ -33,12 +33,12 @@ def SignIn(username, password):
     #read the input as a hash
     pwhash = hashlib.sha256(password.encode('utf-8')).hexdigest()
     print(pwhash)
-    database = OpenDB()
-    for signin in database['signins']:
+    d = OpenDB()
+    for signin in d['signins']:
         if signin['username'] == username:
             if signin['pass'] == pwhash:
                 print("Signed in successfully!")
-                StartMenu(database, signin['level'])
+                StartMenu(d, signin['level'])
             else:
                 print("Incorrect Password")
             
