@@ -1,8 +1,15 @@
 <html>  
-    <body>
-        <p>Welcome!</p>
-        <p>The current balance is: {{ balance }}</p>
-        <a href="/logs">Audit Logs</a>
-        <a href="/login">Admin Login</a>
-    </body>
+<head>
+    <title>CW1 Webmaster's site</title>
+</head>
+<body>
+    <p>Welcome!<br /></p>
+    <a href="/login">Officer Login<br /></a>
+    <p>-------------Treasurer API section-------------</p>
+    <p>The current class balance is: {{ balance }}$</p>
+    <a href="/treasurerlogs">Audit Treasurer Logs<br /></a>
+    <a href="/createrequest">Create Requests (officer only)<br /></a>
+    <a href="/requestmanager">Manage Requests (treasurer only)<br /></a>
+    <p>-----------------------------------------------------</p>
+</body>
 </html>
