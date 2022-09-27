@@ -53,6 +53,17 @@ def func():
 
 # Return all audit logs (no authentication, open to all users)
 
+@app.route('/meetinglogs')
+def meetinglogs():
+    d=OpenDB()
+    requestInEnglish = ''
+    logs = len(d['meetingLogs'])
+    while logs > 0:
+        log = d['meetingLogs'][-logs]
+        requestInEnglish += '<\br>At ' + datetime.fromtimestamp(int(meetingLogs['date'])).strftime('%m/%d/%y %H:%M:%S') + ', a meeting happened' + str(meetingLogs['reason']) + '. The meeting summary is "' +str(meetingLogs['summary']) + '".'
+        logs -= 1
+    return requestInEnglish
+
 @app.route('/treasurerlogs')
 def logs():
     d = OpenDB()
@@ -117,19 +128,10 @@ def meetinglogger():
                     return("Log Saved<\br><a href=/meetinglogger>Return to the meeting logger</a>")
             else:
             # ...or returns the file to send the POST
-                return app.send_static_file('makerequest.html')
+                return app.send_static_file('makelog.html')
     abort(403)
 
-@app.route('/meetinglogs')
-def meetlogs():
-    d=OpenDB()
-    requestInEnglish = ''
-    logs = len(d['meetingLogs'])
-    while logs > 0:
-        log = d['meetingLogs'][-logs]
-        requestInEnglish += '<\br>At ' + datetime.fromtimestamp(int(meetingLogs['date'])).strftime('%m/%d/%y %H:%M:%S') + ', a meeting happened' + str(meetingLogs['reason']) + '. The meeting summary is "' +str(meetingLogs['summary']) + '".'
-        logs -= 1
-    return requestInEnglish
+
 
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
