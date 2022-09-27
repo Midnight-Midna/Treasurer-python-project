@@ -94,7 +94,6 @@ def CreateRequest():
                 return app.send_static_file('makerequest.html')
     abort(403)
         
-        
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
     d = OpenDB()
