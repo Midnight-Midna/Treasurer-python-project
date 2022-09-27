@@ -61,10 +61,10 @@ def logs():
     while logs > 0:
         log = d['logs'][-logs]
         requestInEnglish += '\nAt ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', the balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
-        if bool(log['accepted']):
-            requestInEnglish += ' The request has been approved.'
+        if bool(log['accepted'] == 'true'):
+            requestInEnglish += ' The request has been approved.<br/>'
         else:
-            requestInEnglish += ' The request was denied.'
+            requestInEnglish += ' The request was denied.<br/>'
         logs -= 1
     return requestInEnglish
 
@@ -94,7 +94,6 @@ def CreateRequest():
                 return app.send_static_file('makerequest.html')
     abort(403)
         
-
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
     d = OpenDB()
