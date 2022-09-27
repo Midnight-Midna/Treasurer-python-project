@@ -76,7 +76,7 @@ def CreateRequest():
     today = datetime.fromtimestamp(int(unix_timestamp))
     
     for loginToken in d['tokens']:
-        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) == 2:
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) != 3:
             # Constructs request from POST data and saves
             if request.method == 'POST':
 
@@ -93,7 +93,43 @@ def CreateRequest():
             # ...or returns the file to send the POST
                 return app.send_static_file('makerequest.html')
     abort(403)
-        
+
+@app.route('/meetinglogger', methods = ['POST', 'GET'])
+def meetinglogger():
+    d = OpenDB()
+    # Gets current unix timestamp for dating the request
+    unix_timestamp = datetime.now().timestamp()
+    today = datetime.fromtimestamp(int(unix_timestamp))
+    
+    for loginToken in d['tokens']:
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) != 3:
+            # Constructs request from POST data and saves
+            #needs date, reason, and summary
+            if request.method == 'POST':
+
+                    newRequest = {
+                    "date"    : int(unix_timestamp),
+                    "reason"   : str(request.form["reason"]),
+                    "summary"    : request.form['summary'],
+                    }
+                    d['meetingLogs'].append(newRequest)
+                    SaveDB(d)
+                    return("Log Saved<\br><a href=/meetinglogger>Return to the meeting logger</a>")
+            else:
+            # ...or returns the file to send the POST
+                return app.send_static_file('makerequest.html')
+    abort(403)
+
+@app.route('/meetinglogs')
+def meetlogs():
+    d=OpenDB()
+    requestInEnglish = ''
+    logs = len(d['meetingLogs'])
+    while logs > 0:
+        log = d['meetingLogs'][-logs]
+        requestInEnglish += '<\br>At ' + datetime.fromtimestamp(int(meetingLogs['date'])).strftime('%m/%d/%y %H:%M:%S') + ', a meeting happened' + str(meetingLogs['reason']) + '. The meeting summary is "' +str(meetingLogs['summary']) + '".'
+        logs -= 1
+    return requestInEnglish
 
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
@@ -106,6 +142,8 @@ def login():
             if signin['username'] == user:
                 if signin['pass'] == pwhash:
                     match signin['level']:
+                        case 1:
+                            resp = make_response(render_template('parliamentarian-loggedin.html'))
                         case 2:
                             resp = make_response(render_template('admin-loggedin.html'))
                         case 3:
