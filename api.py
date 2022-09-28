@@ -51,8 +51,21 @@ def func():
     
     return render_template('welcome.html', balance = str(d['balance']))
 
-# Return all audit logs (no authentication, open to all users)
 
+@app.route('/meetinglogs')
+def meetinglogs():
+    d=OpenDB()
+    requestInEnglish = ''
+    for loginToken in d['tokens']:
+        if request.cookies.get('loginToken') == loginToken['token']:
+            meetingLogs = len(d['meetingLogs'])
+            while meetingLogs > 0:
+                meetingLog = d['meetingLogs'][-meetingLogs]
+                requestInEnglish += 'A meeting was logged at ' + datetime.fromtimestamp(int(meetingLog['date'])).strftime('%m/%d/%y %H:%M:%S') +', with the meeting ID of ' +str(int(meetingLog['ID']))+ '. The meeting happened for the reason "' + str(meetingLog['reason']) + '". The meeting summary was "' +str(meetingLog['summary']) + '".<br>'
+                meetingLogs -= 1
+    return requestInEnglish
+
+# Return all audit logs (no authentication, open to all users)
 @app.route('/treasurerlogs')
 def logs():
     d = OpenDB()
@@ -60,8 +73,8 @@ def logs():
     logs = len(d['logs'])
     while logs > 0:
         log = d['logs'][-logs]
-        requestInEnglish += '\nAt ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', the balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
-        if bool(log['accepted' == 'true']):
+        requestInEnglish += '\nAt ' + datetime.fromtimestamp(int(log['date'])).strftime('%m/%d/%y %H:%M:%S') + ', The balance was requested to be changed by $' + str('{:.2f}'.format(float(log['value']))) + ' for "' +str(log['desc']) + '".'
+        if bool(log['accepted']):
             requestInEnglish += ' The request has been approved.</br>'
         else:
             requestInEnglish += ' The request was denied.</br>'
@@ -74,9 +87,10 @@ def CreateRequest():
     # Gets current unix timestamp for dating the request
     unix_timestamp = datetime.now().timestamp()
     today = datetime.fromtimestamp(int(unix_timestamp))
+
     
     for loginToken in d['tokens']:
-        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) == 2:
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) != 3:
             # Constructs request from POST data and saves
             if request.method == 'POST':
 
@@ -84,7 +98,7 @@ def CreateRequest():
                     "date"    : int(unix_timestamp),
                     "value"   : str(request.form["change"]),
                     "desc"    : request.form['reason'],
-                    "accepted": False 
+                    "accepted": 0
                     }
                     d['pendingRequests'].append(newRequest)
                     SaveDB(d)
@@ -93,7 +107,36 @@ def CreateRequest():
             # ...or returns the file to send the POST
                 return app.send_static_file('makerequest.html')
     abort(403)
-        
+
+@app.route('/meetinglogger', methods = ['POST', 'GET'])
+def meetinglogger():
+    d = OpenDB()
+    nextID = len(d['meetingLogs']) + 1
+    # Gets current unix timestamp for dating the request
+    unix_timestamp = datetime.now().timestamp()
+    today = datetime.fromtimestamp(int(unix_timestamp))
+    
+    for loginToken in d['tokens']:
+        if request.cookies.get('loginToken') == loginToken['token'] and int(loginToken['level']) == 1:
+            # Constructs request from POST data and saves
+            #needs date, reason, and summary
+            if request.method == 'POST':
+
+                    newRequest = {
+                    "ID"    : nextID,
+                    "date"    : int(unix_timestamp),
+                    "reason"   : str(request.form["reason"]),
+                    "summary"    : request.form['summary'],
+                    }
+                    d['meetingLogs'].append(newRequest)
+                    SaveDB(d)
+                    return("Log Saved<br><a href=/meetinglogger>Return to the meeting logger</a>")
+            else:
+            # ...or returns the file to send the POST
+                return app.send_static_file('makelog.html')
+    abort(403)
+
+
 
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
@@ -106,6 +149,8 @@ def login():
             if signin['username'] == user:
                 if signin['pass'] == pwhash:
                     match signin['level']:
+                        case 1:
+                            resp = make_response(render_template('parliamentarian-loggedin.html'))
                         case 2:
                             resp = make_response(render_template('admin-loggedin.html'))
                         case 3:
@@ -137,7 +182,7 @@ def ResponseManager():
                 match request.form['Action']:
                     case 'Approve':
                         chosenRequest = d['pendingRequests'][int(request.form['ID'])-1]
-                        chosenRequest['accepted'] = 'true'
+                        chosenRequest['accepted'] = 1
                         d['logs'].append(chosenRequest)
                         d['balance'] += Decimal(chosenRequest['value'])
                         d['balance'] = str(d['balance'])
@@ -146,7 +191,7 @@ def ResponseManager():
                         return('Approved!\n<a href=/requestmanager>Return to Request Manager</a>')
                     case 'Deny':
                         chosenRequest = d['pendingRequests'][int(request.form['ID'])-1]
-                        chosenRequest['accepted'] = 'false'
+                        chosenRequest['accepted'] = 0
                         d['logs'].append(chosenRequest)
                         del d["pendingRequests"][int(request.form['ID'])-1]
                         SaveDB(d)
